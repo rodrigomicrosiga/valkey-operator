@@ -1,0 +1,9 @@
+apiVersion: valkey.cloud104.io/v1alpha1
+kind: ValkeyInstance
+metadata:
+  labels:
+    app.kubernetes.io/name: valkey-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: valkeyinstance-sample
+spec:
+  # TODO(user): Add fields here
