@@ -83,3 +83,27 @@ Bancos de dados NoSQL utilizam transporte de dados em nível de rede TCP pura. P
 
 * Durante a transição do ambiente de desenvolvimento (Tilt) para produção (Helm), o K8s bloqueou o deploy por conflito de posse (`app.kubernetes.io/managed-by`). O problema foi solucionado com o expurgo estratégico não apenas do *Namespace* local, mas dos recursos *cluster-scoped* (`ClusterRole` e `ClusterRoleBinding`) deixados pelo Tilt, garantindo uma instalação do Helm 100% limpa e com a assinatura correta.
 
+## ⚡ Teste de Carga e Validação (Benchmark)
+
+Como parte das práticas de SRE (`Site Reliability Engineering`), o repositório inclui testes de validação de stress para garantir que a infraestrutura provisionada suporte cenários reais de alta volumetria sem gargalos de rede ou I/O de disco.
+
+Utilizamos a ferramenta nativa `valkey-benchmark` para disparar requisições simultâneas contra o cluster.
+
+**Como executar o canhão de testes**
+
+* Aplique o manifesto do Job no Kubernetes:
+
+```bash
+kubectl apply -f tests/load/benchmark.yaml
+```
+
+* Monitore a execução e extraia os resultados (`Throughput` e `Latência`):
+
+```bash
+kubectl logs -f job/valkey-load-test
+```
+
+**Resultados de Performance**
+
+Em testes controlados com 50 conexões simultâneas e 100.000 requisições, a infraestrutura atingiu a marca de **+50.000 requisições por segundo (RPS)** para operações de leitura e escrita (`GET/SET`), sustentando uma latência mediana (p50) extremamente baixa, inferior a **1 milissegundo** (`~0.7ms`).
+

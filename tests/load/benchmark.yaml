@@ -1,0 +1,28 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: valkey-load-test
+  namespace: default
+spec:
+  backoffLimit: 0 # Se falhar, não tenta de novo, queremos ver o erro cru
+  template:
+    metadata:
+      labels:
+        app: valkey-benchmark
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: benchmark
+        image: valkey/valkey:8.0
+        # O comando abaixo dispara o "canhão"
+        command: ["valkey-benchmark"]
+        args:
+          - "-h"
+          - "cache-sistema.default.svc.cluster.local" # Nosso Endpoint mágico
+          - "-p"
+          - "6379"
+          - "-c"
+          - "50"       # 50 aplicações/clientes conectados ao mesmo tempo
+          - "-n"
+          - "100000"   # 100 mil requisições no total
+          - "-q"       # Modo "quieto", mostra apenas o consolidado de requisições por segundo
