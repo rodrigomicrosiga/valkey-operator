@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-valkey-script
+  namespace: default
+data:
+  script.js: |
+    import redis from 'k6/x/redis';
+    import { check } from 'k6';
+
+    export const options = {
+      scenarios: {
+        valkey_stress: {
+          executor: 'ramping-vus',
+          startVUs: 0,
+          stages: [
+            { duration: '15s', target: 200 },
+            { duration: '30s', target: 200 },
+            { duration: '10s', target: 0 },
+          ],
+        },
+      },
+      thresholds: {
+        checks: ['rate>0.99']            
+      },
+    };
+
+    // 1. Conexão corrigida: Uso direto de URL de protocolo
+    const client = new redis.Client(__ENV.VALKEY_URL || 'redis://cache-sistema.default.svc.cluster.local:6379');
+
+    // 2. Função Async restaurada
+    export default async function () {
+      const key = `sessao_usuario_${__VU}_${__ITER}`;
+      const value = `payload_token_${__VU}_${__ITER}_${Date.now()}`;
+
+      // 3. Await obrigatório e parâmetro TTL (0 = sem expiração) adicionado ao set
+      await client.set(key, value, 0);
+      const readValue = await client.get(key);
+
+      check(readValue, {
+        'integridade do cache confirmada': (r) => r === value,
+      });
+    }
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-valkey-load-test
+  namespace: default
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: k6-load-test
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: k6
+        image: grafana/k6:latest
+        command: ["k6", "run", "/scripts/script.js"]
+        env:
+          # Variável de ambiente atualizada para suportar o formato URL
+          - name: VALKEY_URL
+            value: "redis://cache-sistema.default.svc.cluster.local:6379"
+        resources:
+          requests:
+            cpu: "500m"
+            memory: "256Mi"
+          limits:
+            cpu: "2"
+            memory: "1Gi"
+        volumeMounts:
+        - name: script-volume
+          mountPath: /scripts
+      volumes:
+      - name: script-volume
+        configMap:
+          name: k6-valkey-script

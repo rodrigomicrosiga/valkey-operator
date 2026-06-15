@@ -107,3 +107,21 @@ kubectl logs -f job/valkey-load-test
 
 Em testes controlados com 50 conexões simultâneas e 100.000 requisições, a infraestrutura atingiu a marca de **+50.000 requisições por segundo (RPS)** para operações de leitura e escrita (`GET/SET`), sustentando uma latência mediana (p50) extremamente baixa, inferior a **1 milissegundo** (`~0.7ms`).
 
+## ⚡ Teste de Carga Avançado (SRE & Grafana k6)
+
+Como parte das práticas rigorosas de Engenharia de Confiabilidade (SRE), a validação de infraestrutura utiliza o **Grafana k6** para testes de carga programáveis, simulando jornadas reais de usuário, validação de integridade matemática e definição de *Thresholds* (critérios de falha).
+
+### Arquitetura do Teste
+O teste é executado nativamente na rede interna do cluster (K8s Job montando um ConfigMap). O k6 utiliza a extensão de altíssima performance `k6/x/redis` para estabelecer conexões TCP diretas via protocolo nativo com o *Service* gerenciado pelo Operator.
+
+* **Jornada Simulada (Virtual Users):** Geração dinâmica de chaves, escrita (`SET`), leitura (`GET`) e checagem de integridade do payload (`check`).
+* **Critérios de Aceite:** * A taxa de sucesso (integridade dos dados lidos) deve ser rigorosamente `100%`.
+
+### Resultados de Performance (Em Ambiente Kubernetes Local)
+Em um teste brutal focado em I/O de rede (Pod-to-Pod) e volumetria de disco, configurado com Ramp-Up para **200 Usuários Virtuais Simultâneos** durante 55 segundos:
+
+* **Throughput:** O K8s Operator sustentou incríveis **607.331 jornadas completas** (geração, set, get e validação), atingindo picos superiores a **11.000 iterações por segundo**.
+* **Integridade (Zero Perda de Dados):** O *Threshold* SRE de validação cravou **100% de sucesso**. Zero operações falhas ou pacotes corrompidos.
+* **Latência da Jornada:** A latência mediana (p50) para realizar *todo o fluxo assíncrono* de ida e volta permaneceu na casa de **~12 milissegundos**.
+* **I/O:** O Service roteou perfeitamente **+105 MB** de pacotes TCP puros dentro de um minuto sem gargalos de DNS.
+
